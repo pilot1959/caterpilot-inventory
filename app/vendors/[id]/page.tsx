@@ -1,6 +1,6 @@
 'use client';
 
-import VendorItems from '@/components/vendors/VendorItems';
+import VendorItems from '../../components/vendors/VendorItems';
 
 export default function VendorDetail() {
   return (
