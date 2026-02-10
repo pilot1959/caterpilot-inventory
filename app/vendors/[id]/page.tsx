@@ -1,16 +1,8 @@
-'use client';
-
-import VendorItems from '../../components/vendors/VendorItems';
-
-export default function VendorDetail() {
+export default function VendorDetailPage() {
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Vendor Name</h1>
-        <div className="text-sm text-gray-500">Contact • Phone • Email</div>
-      </div>
-
-      <VendorItems />
+    <div style={{ padding: 24 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 600 }}>Vendor Detail</h1>
+      <p>Detail page route works.</p>
     </div>
   );
 }
