@@ -1,37 +1,60 @@
-'use client';
+"use client";
 
-export default function VendorItems() {
+export default function VendorItems({ vendorId }: { vendorId: string }) {
+  const items = [
+    { name: "Example Item A", unit: "ct", avgCost: 0 },
+    { name: "Example Item B", unit: "g", avgCost: 0 },
+  ];
+
   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold">Items</h2>
-        <div className="flex gap-2">
-          <button className="border rounded-md px-3 py-1">Import</button>
-          <button className="bg-black text-white rounded-md px-3 py-1">
-            + Add Item
-          </button>
+    <div
+      style={{
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        padding: 16,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>Vendor Items</h2>
+          <p style={{ marginTop: 6, opacity: 0.75 }}>
+            Items purchased from <strong>{vendorId}</strong>. Rolling-average
+            cost will calculate here.
+          </p>
         </div>
+
+        <button
+          style={{
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid #111827",
+            background: "#111827",
+            color: "white",
+            height: 40,
+          }}
+          onClick={() => alert("Next: Add Item form")}
+        >
+          + Add Item
+        </button>
       </div>
 
-      <div className="overflow-auto">
-        <table className="w-full border rounded-lg">
-          <thead className="bg-gray-50 text-sm">
-            <tr>
-              <th className="text-left p-2">Item</th>
-              <th className="text-left p-2">Pack</th>
-              <th className="text-left p-2">Pack Price</th>
-              <th className="text-left p-2">Unit Cost</th>
-              <th className="text-left p-2">Last Purchased</th>
+      <div style={{ marginTop: 14, overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
+              <th style={{ padding: "10px 8px" }}>Item</th>
+              <th style={{ padding: "10px 8px" }}>Unit</th>
+              <th style={{ padding: "10px 8px" }}>Avg Cost</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="border-t">
-              <td className="p-2">Eggs</td>
-              <td className="p-2">15 doz</td>
-              <td className="p-2">$45.00</td>
-              <td className="p-2">$0.25 / ct</td>
-              <td className="p-2">03/10/26</td>
-            </tr>
+            {items.map((it) => (
+              <tr key={it.name} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                <td style={{ padding: "10px 8px" }}>{it.name}</td>
+                <td style={{ padding: "10px 8px" }}>{it.unit}</td>
+                <td style={{ padding: "10px 8px" }}>${it.avgCost.toFixed(2)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
