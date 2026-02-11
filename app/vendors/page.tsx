@@ -1,22 +1,27 @@
 'use client';
 
-import VendorItems from '../../components/vendors/VendorItems';
+import { useState } from 'react';
+import VendorList from '../components/vendors/VendorList';
+import VendorForm from '../components/vendors/VendorForm';
 
-export default function VendorDetailPage() {
+export default function VendorsPage() {
+  const [showForm, setShowForm] = useState(false);
+
   return (
-    <div className="p-6">
+    <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Vendor Detail</h1>
-          <p className="text-sm text-neutral-500">Manage items, pricing, receiving, flags.</p>
-        </div>
-
-        <a className="rounded-md border px-4 py-2 text-sm" href="/vendors">
-          Back
-        </a>
+        <h1 className="text-2xl font-semibold">Vendors</h1>
+        <button
+          onClick={() => setShowForm(true)}
+          className="px-4 py-2 bg-black text-white rounded-md"
+        >
+          Add Vendor
+        </button>
       </div>
 
-      <VendorItems />
+      <VendorList />
+
+      {showForm && <VendorForm onClose={() => setShowForm(false)} />}
     </div>
   );
 }
