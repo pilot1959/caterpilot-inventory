@@ -21,40 +21,48 @@ export default function VendorDetailPage({
     <div style={{ padding: 24 }}>
       <Link href="/vendors">← Back to Vendors</Link>
 
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginTop: 16 }}>
+      <h1 style={{ fontSize: 28, fontWeight: 700, marginTop: 16 }}>
         {vendor.name}
       </h1>
 
-      <div style={{ marginTop: 24 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600 }}>
-          Items ({vendor.items.length})
-        </h2>
+      <p style={{ marginTop: 8, opacity: 0.7 }}>
+        Vendor ID: {vendor.id}
+      </p>
 
-        {vendor.items.length === 0 && (
-          <p style={{ marginTop: 8, opacity: 0.6 }}>
-            No items yet. Items, pricing, and rolling-average COGS will appear here.
-          </p>
-        )}
+      <div style={{ marginTop: 32 }}>
+        <h2>Vendor Items</h2>
 
-        {vendor.items.map(item => (
+        <div style={{ marginTop: 16 }}>
           <div
-            key={item.id}
             style={{
-              marginTop: 12,
-              padding: 12,
-              border: "1px solid #e5e5e5",
-              borderRadius: 8
+              display: "grid",
+              gridTemplateColumns: "2fr 1fr 1fr",
+              fontWeight: 600,
+              borderBottom: "1px solid #ddd",
+              paddingBottom: 8
             }}
           >
-            <strong>{item.name}</strong>
-            <div style={{ marginTop: 4, fontSize: 14 }}>
-              Last Cost: {money(item.lastCost)}
-            </div>
-            <div style={{ fontSize: 14, opacity: 0.7 }}>
-              Rolling Avg: {money(rollingAverage(item.costHistory))}
-            </div>
+            <div>Item</div>
+            <div>Unit</div>
+            <div>Avg Cost</div>
           </div>
-        ))}
+
+          {vendor.items.map(item => (
+            <div
+              key={item.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "2fr 1fr 1fr",
+                padding: "8px 0",
+                borderBottom: "1px solid #eee"
+              }}
+            >
+              <div>{item.name}</div>
+              <div>{item.unit}</div>
+              <div>{money(rollingAverage(item.costHistory))}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
