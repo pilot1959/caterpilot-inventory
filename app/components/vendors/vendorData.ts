@@ -15,23 +15,31 @@ export type Vendor = {
   items: VendorItem[];
 };
 
-export const seedVendors: Vendor[] = [
+export const seedVendors = [
   {
     id: "sysco",
     name: "Sysco",
-    items: []
+    items: [
+      { id: "sysco-1", name: "Example Item A", unit: "ct", costHistory: [0] },
+      { id: "sysco-2", name: "Example Item B", unit: "g", costHistory: [0] },
+    ],
   },
   {
     id: "costco",
     name: "Costco",
-    items: []
+    items: [
+      { id: "costco-1", name: "Example Item A", unit: "ct", costHistory: [0] },
+    ],
   },
   {
-    id: "us-foods",
+    id: "usfoods",
     name: "US Foods",
-    items: []
-  }
+    items: [
+      { id: "usfoods-1", name: "Example Item A", unit: "ct", costHistory: [0] },
+    ],
+  },
 ];
+
 
 export function rollingAverage(costHistory: number[]) {
   if (!costHistory.length) return 0;
