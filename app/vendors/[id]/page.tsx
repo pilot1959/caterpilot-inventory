@@ -1,68 +1,37 @@
 import Link from "next/link";
-import { seedVendors, rollingAverage, money } from "@/app/components/vendors/vendorData";
+import VendorItems from "../../components/vendors/VendorItems";
+import { seedVendors } from "../../components/vendors/vendorData";
 
 export default function VendorDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const vendor = seedVendors.find(v => v.id === params.id);
+  const vendor = seedVendors.find((v) => v.id === params.id);
 
   if (!vendor) {
     return (
       <div style={{ padding: 24 }}>
         <Link href="/vendors">← Back to Vendors</Link>
-        <h1 style={{ marginTop: 16 }}>Vendor Not Found</h1>
+        <h1 style={{ marginTop: 12 }}>Vendor Not Found</h1>
+        <p style={{ opacity: 0.7 }}>No vendor exists with id: {params.id}</p>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <Link href="/vendors">← Back to Vendors</Link>
+    <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
+      <Link href="/vendors" style={{ textDecoration: "none" }}>
+        ← Back to Vendors
+      </Link>
 
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginTop: 16 }}>
-        {vendor.name}
-      </h1>
+      <h1 style={{ fontSize: 34, fontWeight: 900, margin: "12px 0 0" }}>{vendor.name}</h1>
+      <div style={{ marginTop: 6, opacity: 0.7 }}>
+        Vendor ID: <b>{params.id}</b>
+      </div>
 
-      <p style={{ marginTop: 8, opacity: 0.7 }}>
-        Vendor ID: {vendor.id}
-      </p>
-
-      <div style={{ marginTop: 32 }}>
-        <h2>Vendor Items</h2>
-
-        <div style={{ marginTop: 16 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr",
-              fontWeight: 600,
-              borderBottom: "1px solid #ddd",
-              paddingBottom: 8
-            }}
-          >
-            <div>Item</div>
-            <div>Unit</div>
-            <div>Avg Cost</div>
-          </div>
-
-          {vendor.items.map(item => (
-            <div
-              key={item.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "2fr 1fr 1fr",
-                padding: "8px 0",
-                borderBottom: "1px solid #eee"
-              }}
-            >
-              <div>{item.name}</div>
-              <div>{item.unit}</div>
-              <div>{money(rollingAverage(item.costHistory))}</div>
-            </div>
-          ))}
-        </div>
+      <div style={{ marginTop: 18 }}>
+        <VendorItems vendor={vendor} />
       </div>
     </div>
   );
