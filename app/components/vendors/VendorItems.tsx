@@ -1,104 +1,93 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Vendor, rollingAverage, money, VendorItem } from "./vendorData";
+import VendorForm from "./VendorForm";
 
-type Item = {
-  id: string;
-  name: string;
-  unit: string;
-  costHistory: number[];
-};
+export default function VendorItems({ vendor }: { vendor: Vendor }) {
+  const [isOpen, setIsOpen] = useState(false);
 
-function rollingAverage(history: number[]) {
-  if (history.length === 0) return 0;
-  return history.reduce((a, b) => a + b, 0) / history.length;
-}
-
-function money(n: number) {
-  return `$${n.toFixed(2)}`;
-}
-
-export default function VendorItems() {
-  const [items, setItems] = useState<Item[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState("");
-  const [unit, setUnit] = useState("");
-
-  function addItem() {
-    if (!name) return;
-
-    const newItem: Item = {
-      id: crypto.randomUUID(),
-      name,
-      unit,
-      costHistory: []
-    };
-
-    setItems([...items, newItem]);
-    setName("");
-    setUnit("");
-    setShowForm(false);
-  }
+  const rows = useMemo(() => {
+    return vendor.items.map((it) => ({
+      ...it,
+      avg: rollingAverage(it.costHistory),
+    }));
+  }, [vendor.items]);
 
   return (
-    <div style={{ marginTop: 32 }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h2>Vendor Items</h2>
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 20, background: "white" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>Vendor Items</div>
+          <div style={{ marginTop: 4, opacity: 0.7 }}>
+            Items purchased from <b>{vendor.name}</b>. Rolling-average cost will calculate here.
+          </div>
+        </div>
+
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => setIsOpen(true)}
           style={{
+            padding: "10px 14px",
+            borderRadius: 12,
             background: "#111827",
             color: "white",
-            padding: "8px 14px",
-            borderRadius: 8
+            border: "none",
+            fontWeight: 700,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
           }}
         >
           + Add Item
         </button>
       </div>
 
-      {showForm && (
-        <div style={{ marginTop: 16 }}>
-          <input
-            placeholder="Item name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            style={{ marginRight: 8 }}
-          />
-          <input
-            placeholder="Unit (ct, lb, g, etc)"
-            value={unit}
-            onChange={e => setUnit(e.target.value)}
-            style={{ marginRight: 8 }}
-          />
-          <button onClick={addItem}>Save</button>
+      <div style={{ marginTop: 18, borderTop: "1px solid #eef2f7" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 140px 140px",
+            gap: 12,
+            padding: "12px 0",
+            fontWeight: 700,
+          }}
+        >
+          <div>Item</div>
+          <div>Unit</div>
+          <div>Avg Cost</div>
         </div>
-      )}
 
-      <div style={{ marginTop: 16 }}>
-        {items.length === 0 && (
-          <p style={{ opacity: 0.6 }}>
-            No items yet.
-          </p>
+        {rows.length === 0 ? (
+          <div style={{ padding: "14px 0", opacity: 0.7 }}>No items yet.</div>
+        ) : (
+          rows.map((it) => (
+            <div
+              key={it.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 140px 140px",
+                gap: 12,
+                padding: "12px 0",
+                borderTop: "1px solid #f3f4f6",
+              }}
+            >
+              <div style={{ fontWeight: 600 }}>{it.name}</div>
+              <div style={{ opacity: 0.8 }}>{it.unit}</div>
+              <div style={{ fontWeight: 700 }}>{money(it.avg)}</div>
+            </div>
+          ))
         )}
-
-        {items.map(item => (
-          <div
-            key={item.id}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr",
-              padding: "8px 0",
-              borderBottom: "1px solid #eee"
-            }}
-          >
-            <div>{item.name}</div>
-            <div>{item.unit}</div>
-            <div>{money(rollingAverage(item.costHistory))}</div>
-          </div>
-        ))}
       </div>
+
+      {isOpen && (
+        <VendorForm
+          onClose={() => setIsOpen(false)}
+          onSave={(newItem: VendorItem) => {
+            // UI-only for now (no database). Next step will persist to Supabase.
+            vendor.items.push(newItem);
+            setIsOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
-
