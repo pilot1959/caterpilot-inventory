@@ -6,16 +6,15 @@ export default function VendorDetailPage({
 }: {
   params: { id: string };
 }) {
-  const vendor = seedVendors.find((v) => v.id === params.id);
+  const vendorId = decodeURIComponent(params.id || "");
+  const vendor = seedVendors.find((v) => v.id === vendorId);
 
   if (!vendor) {
     return (
       <div style={{ padding: 24 }}>
         <Link href="/vendors">← Back to Vendors</Link>
         <h1 style={{ marginTop: 16 }}>Vendor Not Found</h1>
-        <p style={{ marginTop: 8 }}>
-          No vendor exists with id: {params.id}
-        </p>
+        <p style={{ marginTop: 8 }}>No vendor exists with id: {vendorId || "(blank id)"}</p>
       </div>
     );
   }
@@ -24,9 +23,7 @@ export default function VendorDetailPage({
     <div style={{ padding: 24 }}>
       <Link href="/vendors">← Back to Vendors</Link>
 
-      <h1 style={{ fontSize: 30, fontWeight: 800, marginTop: 12 }}>
-        {vendor.name}
-      </h1>
+      <h1 style={{ fontSize: 30, fontWeight: 800, marginTop: 12 }}>{vendor.name}</h1>
 
       <div
         style={{
@@ -37,9 +34,7 @@ export default function VendorDetailPage({
           maxWidth: 900,
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 800 }}>
-          Vendor Items
-        </div>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>Vendor Items</div>
 
         <div
           style={{
@@ -68,9 +63,7 @@ export default function VendorDetailPage({
           >
             <div>{item.name}</div>
             <div>{item.unit}</div>
-            <div style={{ fontWeight: 700 }}>
-              {money(rollingAverage(item.costHistory))}
-            </div>
+            <div style={{ fontWeight: 700 }}>{money(rollingAverage(item.costHistory))}</div>
           </div>
         ))}
       </div>
