@@ -1,4 +1,5 @@
 import Link from "next/link";
+import VendorItems from "../../components/vendors/VendorItems";
 
 export default function VendorDetailPage({
   params,
@@ -6,10 +7,10 @@ export default function VendorDetailPage({
   params: { id: string };
 }) {
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, maxWidth: 900 }}>
       <Link href="/vendors">← Back to Vendors</Link>
 
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginTop: 12 }}>
+      <h1 style={{ fontSize: 28, fontWeight: 800, marginTop: 12 }}>
         Vendor Detail
       </h1>
 
@@ -17,9 +18,9 @@ export default function VendorDetailPage({
         <strong>Vendor ID:</strong> {params.id}
       </p>
 
-      <p style={{ marginTop: 16, opacity: 0.7 }}>
-        Items, pricing, and rolling-average COGS will live here.
-      </p>
+      <div style={{ marginTop: 18 }}>
+        <VendorItems vendorId={params.id} />
+      </div>
     </div>
   );
 }
