@@ -6,8 +6,7 @@ export default function VendorDetailPage({
 }: {
   params: { id: string };
 }) {
-  const vendorId = decodeURIComponent(params.id);
-  const vendor = seedVendors.find((v) => v.id === vendorId);
+  const vendor = seedVendors.find((v) => v.id === params.id);
 
   if (!vendor) {
     return (
@@ -15,7 +14,7 @@ export default function VendorDetailPage({
         <Link href="/vendors">← Back to Vendors</Link>
         <h1 style={{ marginTop: 16 }}>Vendor Not Found</h1>
         <p style={{ marginTop: 8 }}>
-          No vendor exists with id: {vendorId}
+          No vendor exists with id: {params.id}
         </p>
       </div>
     );
