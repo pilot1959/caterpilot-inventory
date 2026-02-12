@@ -1,311 +1,198 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import AddItemModal, { NewInventoryForm } from "@/app/components/inventory/AddItemModal";
-import { seedVendors } from "@/app/components/vendors/vendorData";
-
-export type InventoryItem = {
-  id: string;
-
-  // Link to vendors
-  vendorId: string;
-  vendorItemId: string;
-
-  // Snapshot fields for display (we can always re-derive, but this prevents breakage later)
-  name: string;
-  unit: string;
-
-  category: string;
-  location: string;
-
-  qty: number;
-  minQty: number;
-
-  createdAt: number;
-  updatedAt: number;
-};
-
-const STORAGE_KEY = "cp_inventory_items_v1";
-
-function uid() {
-  // Safe unique-ish id without dependencies
-  return `inv_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
-function readInventory(): InventoryItem[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-}
-
-function writeInventory(items: InventoryItem[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
+import { useState } from "react";
+import { useStore } from "@/app/store/store";
+import AddItemModal from "@/app/components/inventory/AddItemModal";
 
 export default function InventoryScreen() {
-  const [items, setItems] = useState<InventoryItem[]>([]);
+  const { sortedInventory, money } = useStore();
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    setItems(readInventory());
-  }, []);
-
-  useEffect(() => {
-    writeInventory(items);
-  }, [items]);
-
-  const vendorMap = useMemo(() => {
-    const m = new Map(seedVendors.map((v) => [v.id, v]));
-    return m;
-  }, []);
-
-  const stats = useMemo(() => {
-    const total = items.length;
-    const low = items.filter((i) => i.qty <= i.minQty).length;
-    return { total, low };
-  }, [items]);
-
-  function createFromForm(form: NewInventoryForm) {
-    const vendor = seedVendors.find((v) => v.id === form.vendorId);
-    const vItem = vendor?.items.find((it) => it.id === form.vendorItemId);
-
-    if (!vendor || !vItem) {
-      // If this happens, the modal selection is out of sync (shouldn't),
-      // but we guard anyway.
-      alert("Please choose a valid vendor and vendor item.");
-      return;
-    }
-
-    const now = Date.now();
-
-    const newItem: InventoryItem = {
-      id: uid(),
-
-      vendorId: vendor.id,
-      vendorItemId: vItem.id,
-
-      name: vItem.name,
-      unit: form.unit || vItem.unit || "",
-
-      category: form.category,
-      location: form.location,
-
-      qty: Number(form.qty) || 0,
-      minQty: Number(form.minQty) || 0,
-
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    setItems((prev) => [newItem, ...prev]);
-    setOpen(false);
-  }
-
-  function removeItem(id: string) {
-    if (!confirm("Delete this inventory item?")) return;
-    setItems((prev) => prev.filter((x) => x.id !== id));
-  }
-
-  function bumpQty(id: string, delta: number) {
-    setItems((prev) =>
-      prev.map((x) => {
-        if (x.id !== id) return x;
-        const nextQty = Math.max(0, (Number(x.qty) || 0) + delta);
-        return { ...x, qty: nextQty, updatedAt: Date.now() };
-      })
-    );
-  }
-
   return (
-    <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+    <div style={{ padding: 24, maxWidth: 1100 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 34, fontWeight: 900, margin: 0 }}>Inventory</h1>
-          <p style={{ marginTop: 6, opacity: 0.7 }}>
-            Manage stock levels linked to your vendor items.
-          </p>
+          <div style={{ opacity: 0.7, marginTop: 6 }}>
+            Inventory items are linked to vendor items. List is alphabetical and shows vendor.
+          </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10 }}>
           <Link
-            href="/vendors"
+            href="/"
             style={{
-              padding: "10px 14px",
               border: "1px solid #e5e7eb",
-              borderRadius: 12,
+              padding: "10px 14px",
+              borderRadius: 10,
               textDecoration: "none",
-              fontWeight: 700,
+              color: "black",
+              fontWeight: 800,
             }}
           >
-            Vendors
+            Home
           </Link>
 
           <button
             onClick={() => setOpen(true)}
             style={{
-              padding: "10px 14px",
-              borderRadius: 12,
-              border: "1px solid #16a34a",
-              background: "#16a34a",
+              background: "black",
               color: "white",
-              fontWeight: 800,
+              border: "none",
+              borderRadius: 10,
+              padding: "10px 14px",
+              fontWeight: 900,
               cursor: "pointer",
-              boxShadow: "0 6px 20px rgba(22,163,74,0.18)",
             }}
           >
-            + Add Item
+            + Add Inventory Item
           </button>
         </div>
       </div>
 
-      {/* Stats */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 14,
           marginTop: 18,
+          border: "1px solid #e5e7eb",
+          borderRadius: 14,
+          padding: 16,
         }}
       >
-        <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 14 }}>
-          <div style={{ fontWeight: 800, opacity: 0.7 }}>Total Items</div>
-          <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{stats.total}</div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1.4fr 0.7fr 0.8fr 1fr 1fr 1fr",
+            gap: 10,
+            fontWeight: 900,
+            paddingBottom: 8,
+            borderBottom: "1px solid #e5e7eb",
+          }}
+        >
+          <div>Item</div>
+          <div>Vendor</div>
+          <div>Unit</div>
+          <div>Avg Cost</div>
+          <div>On Hand</div>
+          <div>Par</div>
+          <div>Location</div>
         </div>
-        <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 14 }}>
-          <div style={{ fontWeight: 800, opacity: 0.7 }}>Low Stock Alerts</div>
-          <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{stats.low}</div>
-        </div>
-        <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 14 }}>
-          <div style={{ fontWeight: 800, opacity: 0.7 }}>Shopping List</div>
-          <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>0</div>
-          <div style={{ marginTop: 4, opacity: 0.6, fontSize: 13 }}>
-            (Next step: auto-add low stock)
-          </div>
-        </div>
-      </div>
 
-      {/* Grid of cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 14,
-          marginTop: 18,
-        }}
-      >
-        {items.map((it) => {
-          const isLow = it.qty <= it.minQty;
-          const vendorName = vendorMap.get(it.vendorId)?.name ?? it.vendorId;
+        {sortedInventory.map(({ row, vendor, item, avgCost, low }) => {
+          const itemName = item?.name ?? "(missing item)";
+          const vendorName = vendor?.name ?? "(missing vendor)";
+          const unit = item?.unit ?? "-";
 
           return (
             <div
-              key={it.id}
+              key={row.id}
               style={{
-                border: `1px solid ${isLow ? "#fdba74" : "#e5e7eb"}`,
-                background: isLow ? "#fff7ed" : "white",
-                borderRadius: 16,
-                padding: 14,
+                display: "grid",
+                gridTemplateColumns: "2fr 1.4fr 0.7fr 0.8fr 1fr 1fr 1fr",
+                gap: 10,
+                padding: "12px 0",
+                borderBottom: "1px solid #f1f5f9",
+                alignItems: "center",
+                opacity: vendor && item ? 1 : 0.6,
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 900, lineHeight: 1.2 }}>{it.name}</div>
-                  <div style={{ marginTop: 4, fontSize: 13, opacity: 0.75 }}>
-                    {it.category} • {it.location}
-                  </div>
-                  <div style={{ marginTop: 4, fontSize: 13, opacity: 0.75 }}>
-                    Vendor: <span style={{ fontWeight: 800 }}>{vendorName}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => removeItem(it.id)}
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    background: "white",
-                    borderRadius: 12,
-                    padding: "8px 10px",
-                    cursor: "pointer",
-                    fontWeight: 800,
-                  }}
-                  title="Delete"
-                >
-                  🗑️
-                </button>
+              <div style={{ fontWeight: 900 }}>
+                {itemName}
+                {low && (
+                  <span style={{ marginLeft: 10, fontSize: 12, fontWeight: 900, color: "black", opacity: 0.7 }}>
+                    LOW
+                  </span>
+                )}
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
-                <button
-                  onClick={() => bumpQty(it.id, -1)}
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 12,
-                    border: "1px solid #e5e7eb",
-                    background: "white",
-                    cursor: "pointer",
-                    fontSize: 18,
-                    fontWeight: 900,
-                  }}
-                >
-                  –
-                </button>
+              <div style={{ fontWeight: 800 }}>{vendorName}</div>
+              <div>{unit}</div>
+              <div style={{ fontWeight: 900 }}>{money(avgCost)}</div>
 
-                <div style={{ fontSize: 18, fontWeight: 900 }}>
-                  {it.qty} <span style={{ fontSize: 13, fontWeight: 800, opacity: 0.65 }}>{it.unit}</span>
-                </div>
+              <OnHandControl rowId={row.id} onHand={row.onHand} />
 
-                <button
-                  onClick={() => bumpQty(it.id, +1)}
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 12,
-                    border: "1px solid #e5e7eb",
-                    background: "white",
-                    cursor: "pointer",
-                    fontSize: 18,
-                    fontWeight: 900,
-                  }}
-                >
-                  +
-                </button>
+              <ParControl rowId={row.id} par={row.par} />
 
-                <div style={{ marginLeft: "auto", fontSize: 13, opacity: 0.8 }}>
-                  Min: <span style={{ fontWeight: 900 }}>{it.minQty}</span>
-                </div>
-              </div>
-
-              {isLow && (
-                <div style={{ marginTop: 10, fontSize: 13, fontWeight: 800, color: "#9a3412" }}>
-                  Needs attention: low stock
-                </div>
-              )}
+              <LocationControl rowId={row.id} location={row.location} />
             </div>
           );
         })}
+
+        {sortedInventory.length === 0 && <div style={{ marginTop: 12, opacity: 0.7 }}>No inventory yet.</div>}
       </div>
 
-      {items.length === 0 && (
-        <div style={{ marginTop: 18, opacity: 0.7 }}>
-          No inventory items yet. Click <b>+ Add Item</b> to create your first one.
-        </div>
-      )}
-
-      <AddItemModal
-        open={open}
-        onClose={() => setOpen(false)}
-        onCreate={createFromForm}
-      />
+      {open && <AddItemModal onClose={() => setOpen(false)} />}
     </div>
+  );
+}
+
+function OnHandControl({ rowId, onHand }: { rowId: string; onHand: number }) {
+  const { adjustOnHand } = useStore();
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <button
+        onClick={() => adjustOnHand(rowId, -1)}
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+          fontWeight: 900,
+          cursor: "pointer",
+        }}
+      >
+        −
+      </button>
+      <div style={{ minWidth: 34, textAlign: "center", fontWeight: 900 }}>{onHand}</div>
+      <button
+        onClick={() => adjustOnHand(rowId, 1)}
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "white",
+          fontWeight: 900,
+          cursor: "pointer",
+        }}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+function ParControl({ rowId, par }: { rowId: string; par: number }) {
+  const { setPar } = useStore();
+  return (
+    <input
+      value={par}
+      onChange={(e) => setPar(rowId, Number(e.target.value))}
+      type="number"
+      min={0}
+      style={{
+        border: "1px solid #e5e7eb",
+        borderRadius: 10,
+        padding: "8px 10px",
+        width: "100%",
+      }}
+    />
+  );
+}
+
+function LocationControl({ rowId, location }: { rowId: string; location: string }) {
+  const { setLocation } = useStore();
+  return (
+    <input
+      value={location}
+      onChange={(e) => setLocation(rowId, e.target.value)}
+      style={{
+        border: "1px solid #e5e7eb",
+        borderRadius: 10,
+        padding: "8px 10px",
+        width: "100%",
+      }}
+    />
   );
 }
