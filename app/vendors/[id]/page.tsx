@@ -5,5 +5,6 @@ export default function VendorDetailPage({
 }: {
   params: { id: string };
 }) {
+  // App Router MUST pass params.id here when URL is /vendors/<id>
   return <VendorDetailClient id={params.id} />;
 }
