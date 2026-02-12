@@ -1,69 +1,68 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { seedVendors } from "@/app/components/vendors/vendorData";
+import { useMemo, useState } from "react";
+import { useStore } from "@/app/store/store";
 
-export type NewInventoryForm = {
-  vendorId: string;
-  vendorItemId: string;
-  category: string;
-  location: string;
-  qty: number;
-  minQty: number;
-  unit: string;
-};
+export default function AddItemModal({ onClose }: { onClose: () => void }) {
+  const { sortedVendors, addVendorItem, addInventoryItem, getVendorById } = useStore();
 
-export default function AddItemModal({
-  open,
-  onClose,
-  onCreate,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onCreate: (form: NewInventoryForm) => void;
-}) {
-  const vendorOptions = seedVendors;
+  const [vendorId, setVendorId] = useState(sortedVendors[0]?.id ?? "");
+  const vendor = getVendorById(vendorId);
 
-  const [vendorId, setVendorId] = useState(vendorOptions[0]?.id ?? "");
-  const vendor = useMemo(() => vendorOptions.find((v) => v.id === vendorId), [vendorId, vendorOptions]);
+  const vendorItemsSorted = useMemo(() => {
+    if (!vendor) return [];
+    return [...vendor.items].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  }, [vendor]);
 
-  const [vendorItemId, setVendorItemId] = useState(vendor?.items[0]?.id ?? "");
+  const [mode, setMode] = useState<"existing" | "new">("existing");
 
-  const [category, setCategory] = useState("Pantry");
-  const [location, setLocation] = useState("Dry Storage");
-  const [qty, setQty] = useState<number>(0);
-  const [minQty, setMinQty] = useState<number>(1);
-  const [unit, setUnit] = useState<string>("");
+  const [vendorItemId, setVendorItemId] = useState(vendorItemsSorted[0]?.id ?? "");
 
-  useEffect(() => {
-    // When vendor changes, reset vendorItem selection
-    const first = vendor?.items[0]?.id ?? "";
-    setVendorItemId(first);
-  }, [vendorId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [newName, setNewName] = useState("");
+  const [newUnit, setNewUnit] = useState("");
+  const [newCost, setNewCost] = useState("");
 
-  useEffect(() => {
-    // When vendorItem changes, populate unit from vendor data unless user typed a custom unit
-    const v = vendorOptions.find((x) => x.id === vendorId);
-    const it = v?.items.find((x) => x.id === vendorItemId);
-    if (it && !unit) setUnit(it.unit ?? "");
-  }, [vendorId, vendorItemId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [onHand, setOnHand] = useState(0);
+  const [par, setPar] = useState(0);
+  const [location, setLocation] = useState("Unassigned");
 
-  if (!open) return null;
-
-  const canCreate = Boolean(vendorId && vendorItemId);
+  // When vendor changes, reset the selected item
+  function handleVendorChange(nextVendorId: string) {
+    setVendorId(nextVendorId);
+    const nextVendor = getVendorById(nextVendorId);
+    const nextFirstItem = nextVendor?.items?.slice().sort((a, b) => a.name.localeCompare(b.name))[0];
+    setVendorItemId(nextFirstItem?.id ?? "");
+  }
 
   function submit() {
-    if (!canCreate) return;
+    if (!vendorId) return alert("Choose a vendor first.");
 
-    onCreate({
+    let finalVendorItemId = vendorItemId;
+
+    if (mode === "new") {
+      if (!newName.trim() || !newUnit.trim()) return alert("Enter item name and unit.");
+
+      const created = addVendorItem(vendorId, {
+        name: newName,
+        unit: newUnit,
+        initialCost: newCost.trim() ? Number(newCost) : undefined,
+      });
+
+      if (!created) return alert("Could not create vendor item.");
+      finalVendorItemId = created.id;
+    } else {
+      if (!finalVendorItemId) return alert("Choose a vendor item.");
+    }
+
+    addInventoryItem({
       vendorId,
-      vendorItemId,
-      category,
+      vendorItemId: finalVendorItemId,
       location,
-      qty: Number(qty) || 0,
-      minQty: Number(minQty) || 0,
-      unit: unit || "",
+      onHand,
+      par,
     });
+
+    onClose();
   }
 
   return (
@@ -78,139 +77,192 @@ export default function AddItemModal({
         padding: 16,
         zIndex: 50,
       }}
-      onMouseDown={(e) => {
-        // click outside closes
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onClick={onClose}
     >
       <div
         style={{
-          width: "min(560px, 100%)",
+          width: "min(780px, 96vw)",
           background: "white",
-          borderRadius: 18,
+          borderRadius: 16,
           padding: 18,
           border: "1px solid #e5e7eb",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 900 }}>Add New Item</div>
-            <div style={{ marginTop: 4, opacity: 0.7, fontSize: 13 }}>
-              Inventory items are linked to a vendor item.
+            <div style={{ fontSize: 18, fontWeight: 900 }}>Add Inventory Item</div>
+            <div style={{ opacity: 0.7, marginTop: 4, fontSize: 12 }}>
+              Inventory items must link to a vendor item. You can create a vendor item here if needed.
             </div>
           </div>
-
           <button
             onClick={onClose}
             style={{
               border: "1px solid #e5e7eb",
               background: "white",
-              borderRadius: 12,
+              borderRadius: 10,
               padding: "8px 10px",
-              cursor: "pointer",
               fontWeight: 900,
+              cursor: "pointer",
             }}
-            aria-label="Close"
           >
             ✕
           </button>
         </div>
 
-        <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Field label="Vendor">
-              <select
-                value={vendorId}
-                onChange={(e) => setVendorId(e.target.value)}
-                style={inputStyle}
-              >
-                {vendorOptions.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Vendor Item">
-              <select
-                value={vendorItemId}
-                onChange={(e) => setVendorItemId(e.target.value)}
-                style={inputStyle}
-              >
-                {(vendor?.items ?? []).map((it) => (
-                  <option key={it.id} value={it.id}>
-                    {it.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
+        <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Vendor (required)</div>
+            <select
+              value={vendorId}
+              onChange={(e) => handleVendorChange(e.target.value)}
+              style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}
+            >
+              {sortedVendors.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Field label="Category">
-              <select value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle}>
-                <option>Pantry</option>
-                <option>Dairy & Eggs</option>
-                <option>Meat & Seafood</option>
-                <option>Produce</option>
-                <option>Frozen</option>
-                <option>Beverages</option>
-                <option>Paper & Cleaning</option>
-              </select>
-            </Field>
-
-            <Field label="Location">
-              <select value={location} onChange={(e) => setLocation(e.target.value)} style={inputStyle}>
-                <option>Dry Storage</option>
-                <option>Fridge</option>
-                <option>Freezer</option>
-                <option>Walk-In</option>
-              </select>
-            </Field>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            <Field label="Quantity">
-              <input
-                type="number"
-                value={qty}
-                onChange={(e) => setQty(Number(e.target.value))}
-                style={inputStyle}
-                min={0}
-              />
-            </Field>
-
-            <Field label="Unit">
-              <input
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                style={inputStyle}
-                placeholder="lb, ct, gal..."
-              />
-            </Field>
-
-            <Field label="Min Qty">
-              <input
-                type="number"
-                value={minQty}
-                onChange={(e) => setMinQty(Number(e.target.value))}
-                style={inputStyle}
-                min={0}
-              />
-            </Field>
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Mode</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setMode("existing")}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  border: "1px solid #e5e7eb",
+                  background: mode === "existing" ? "black" : "white",
+                  color: mode === "existing" ? "white" : "black",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Existing Item
+              </button>
+              <button
+                onClick={() => setMode("new")}
+                style={{
+                  flex: 1,
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  border: "1px solid #e5e7eb",
+                  background: mode === "new" ? "black" : "white",
+                  color: mode === "new" ? "white" : "black",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Create New Item
+              </button>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+        {/* Existing vendor item */}
+        {mode === "existing" && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Vendor Item</div>
+            <select
+              value={vendorItemId}
+              onChange={(e) => setVendorItemId(e.target.value)}
+              style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}
+            >
+              {vendorItemsSorted.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.name} ({i.unit})
+                </option>
+              ))}
+            </select>
+            {vendorItemsSorted.length === 0 && (
+              <div style={{ marginTop: 10, opacity: 0.7 }}>
+                This vendor has no items yet. Switch to “Create New Item”.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Create new vendor item */}
+        {mode === "new" && (
+          <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>New Item Name</div>
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g., Roma Tomatoes"
+                style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}
+              />
+            </div>
+            <div>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>Unit</div>
+              <input
+                value={newUnit}
+                onChange={(e) => setNewUnit(e.target.value)}
+                placeholder="e.g., lb, ct"
+                style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}
+              />
+            </div>
+            <div>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>Initial Cost (optional)</div>
+              <input
+                value={newCost}
+                onChange={(e) => setNewCost(e.target.value)}
+                placeholder="e.g., 24.50"
+                style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Inventory fields */}
+        <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 10 }}>
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>On Hand</div>
+            <input
+              type="number"
+              min={0}
+              value={onHand}
+              onChange={(e) => setOnHand(Number(e.target.value))}
+              style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Par</div>
+            <input
+              type="number"
+              min={0}
+              value={par}
+              onChange={(e) => setPar(Number(e.target.value))}
+              style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Location</div>
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="e.g., Dry, Walk-in, Freezer, Bar"
+              style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 12px" }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <button
             onClick={onClose}
             style={{
-              padding: "10px 14px",
-              borderRadius: 12,
               border: "1px solid #e5e7eb",
               background: "white",
+              borderRadius: 10,
+              padding: "10px 14px",
               fontWeight: 900,
               cursor: "pointer",
             }}
@@ -220,39 +272,20 @@ export default function AddItemModal({
 
           <button
             onClick={submit}
-            disabled={!canCreate}
             style={{
-              padding: "10px 14px",
-              borderRadius: 12,
-              border: "1px solid #16a34a",
-              background: canCreate ? "#16a34a" : "#86efac",
+              background: "black",
               color: "white",
+              border: "none",
+              borderRadius: 10,
+              padding: "10px 14px",
               fontWeight: 900,
-              cursor: canCreate ? "pointer" : "not-allowed",
+              cursor: "pointer",
             }}
           >
-            Create Item
+            Add to Inventory
           </button>
         </div>
       </div>
     </div>
   );
 }
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label style={{ display: "grid", gap: 6 }}>
-      <span style={{ fontSize: 13, fontWeight: 900, opacity: 0.75 }}>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 12,
-  border: "1px solid #e5e7eb",
-  outline: "none",
-  fontWeight: 700,
-};
