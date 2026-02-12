@@ -5,5 +5,5 @@ export default function VendorDetailPage({
 }: {
   params: { id: string };
 }) {
-  return <VendorDetailClient id={params?.id ?? ""} />;
+  return <VendorDetailClient id={params.id} />;
 }
