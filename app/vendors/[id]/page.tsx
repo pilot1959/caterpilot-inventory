@@ -15,16 +15,6 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
   const [newItemUnit, setNewItemUnit] = useState("");
   const [newItemCost, setNewItemCost] = useState<string>("");
 
-  if (!vendor) {
-    return (
-      <div style={{ padding: 24 }}>
-        <Link href="/vendors">← Back to Vendors</Link>
-        <h1 style={{ marginTop: 16 }}>Vendor Not Found</h1>
-        <p style={{ marginTop: 8 }}>No vendor exists with id: {vendorId || "(blank id)"}</p>
-      </div>
-    );
-  }
-
   function addItem() {
     const name = newItemName.trim();
     const unit = newItemUnit.trim();
@@ -40,7 +30,7 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
 
     setVendors((prev) =>
       prev.map((v) =>
-        v.id !== vendor.id
+        v.id !== vendorId
           ? v
           : {
               ...v,
@@ -65,7 +55,7 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
   function deleteItem(itemId: string) {
     setVendors((prev) =>
       prev.map((v) =>
-        v.id !== vendor.id
+        v.id !== vendorId
           ? v
           : {
               ...v,
@@ -80,7 +70,7 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
 
     setVendors((prev) =>
       prev.map((v) =>
-        v.id !== vendor.id
+        v.id !== vendorId
           ? v
           : {
               ...v,
@@ -89,6 +79,16 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
               ),
             }
       )
+    );
+  }
+
+  if (!vendor) {
+    return (
+      <div style={{ padding: 24 }}>
+        <Link href="/vendors">← Back to Vendors</Link>
+        <h1 style={{ marginTop: 16 }}>Vendor Not Found</h1>
+        <p style={{ marginTop: 8 }}>No vendor exists with id: {vendorId || "(blank id)"}</p>
+      </div>
     );
   }
 
@@ -153,7 +153,7 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
         </div>
 
         <div style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}>
-          (This is temporary in-memory. We’ll persist to a store next.)
+          (Temporary in-memory — we’ll persist to a store next.)
         </div>
       </div>
 
