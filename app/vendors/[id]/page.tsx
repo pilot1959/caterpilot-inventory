@@ -5,8 +5,7 @@ export default function VendorDetailPage({
 }: {
   params: { id: string };
 }) {
-  // IMPORTANT:
-  // This file must NOT have "use client"
-  // It should stay a server component so params always works.
+  // IMPORTANT: NO "use client" in this file.
+  // This must stay a Server Component so params works reliably.
   return <VendorDetailClient id={params.id} />;
 }
