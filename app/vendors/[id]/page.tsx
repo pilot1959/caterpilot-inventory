@@ -1,37 +1,25 @@
-import Link from "next/link";
+import { useRouter } from "next/router";  // Import useRouter from next/router
 import VendorDetailClient from "@/app/components/vendors/VendorDetailClient";
 
-export default function VendorDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  // HARD PROOF that the server route param exists
-  const serverId = params?.id ?? "";
+export default function VendorDetailPage() {
+  const router = useRouter(); // Use router to fetch the current URL's parameters
+  const { id } = router.query; // Retrieve the vendor ID from the URL query
+
+  // Check if the vendor ID is present
+  if (!id) {
+    return (
+      <div style={{ padding: 24 }}>
+        <Link href="/vendors">← Back to Vendors</Link>
+        <h1 style={{ marginTop: 16 }}>Vendor Not Found</h1>
+        <p style={{ marginTop: 8 }}>No vendor exists with id: (blank id)</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 24 }}>
-      <div
-        style={{
-          padding: 12,
-          border: "1px solid #e5e7eb",
-          borderRadius: 10,
-          marginBottom: 12,
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas",
-          fontSize: 12,
-          opacity: 0.9,
-        }}
-      >
-        BUILD: v2026-02-12-a<br />
-        SERVER params.id: <b>{serverId || "(blank)"}</b>
-      </div>
-
-      {/* keep navigation visible even if client fails */}
-      <div style={{ marginBottom: 12 }}>
-        <Link href="/vendors">← Back to Vendors</Link>
-      </div>
-
-      <VendorDetailClient id={serverId} />
+      <Link href="/vendors">← Back to Vendors</Link>
+      <VendorDetailClient id={id as string} />
     </div>
   );
 }
