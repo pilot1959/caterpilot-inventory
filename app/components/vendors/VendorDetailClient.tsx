@@ -1,24 +1,27 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import { seedVendors, rollingAverage, money } from "@/app/components/vendors/vendorData";
 
-type Props = {
-  id?: string; // optional: we’ll also read from the URL
-};
+export default function VendorDetailClient({ id }: { id?: string }) {
+  const params = useParams();
 
-export default function VendorDetailClient({ id }: Props) {
-  const params = useParams<{ id?: string }>();
+  // Fallback: if prop id is missing, use the URL param
+  const vendorId = useMemo(() => {
+    const raw =
+      (id ?? "") ||
+      (typeof params?.id === "string" ? params.id : "") ||
+      "";
 
-  // Prefer prop, fallback to URL param
-  const rawId =
-    (typeof id === "string" && id.trim().length > 0 ? id : undefined) ??
-    (typeof params?.id === "string" ? params.id : "");
+    return decodeURIComponent(raw).trim();
+  }, [id, params]);
 
-  const vendorId = decodeURIComponent(rawId || "");
-
-  const vendor = seedVendors.find((v) => v.id === vendorId);
+  const vendor = useMemo(() => {
+    if (!vendorId) return undefined;
+    return seedVendors.find((v) => v.id === vendorId);
+  }, [vendorId]);
 
   if (!vendorId || !vendor) {
     return (
@@ -26,13 +29,14 @@ export default function VendorDetailClient({ id }: Props) {
         <Link href="/vendors">← Back to Vendors</Link>
 
         <h1 style={{ marginTop: 16 }}>Vendor Not Found</h1>
-
         <p style={{ marginTop: 8 }}>
           No vendor exists with id: {vendorId ? vendorId : "(blank id)"}
         </p>
 
-        <p style={{ marginTop: 12, opacity: 0.7, fontSize: 12 }}>
-          Debug: prop id = {String(id)} | url params.id = {String(params?.id)}
+        <p style={{ marginTop: 12, opacity: 0.7, fontSize: 13 }}>
+          Debug: prop id = {String(id)} | url param id ={" "}
+          {String(params?.id)} | resolved vendorId ={" "}
+          {vendorId ? vendorId : "(blank)"}
         </p>
       </div>
     );
@@ -55,29 +59,26 @@ export default function VendorDetailClient({ id }: Props) {
           maxWidth: 900,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>Vendor Items</div>
-            <div style={{ opacity: 0.7, marginTop: 4 }}>
-              Items purchased from {vendor.name}. Rolling-average cost will calculate here.
-            </div>
-          </div>
-
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>Vendor Items</div>
           <button
             style={{
-              background: "#0f172a",
+              background: "#111827",
               color: "white",
+              border: "none",
               borderRadius: 10,
               padding: "10px 14px",
-              fontWeight: 800,
-              border: "none",
+              fontWeight: 700,
               cursor: "pointer",
-              height: 42,
             }}
-            onClick={() => alert("Next: Add Item modal (wired to Supabase soon).")}
+            onClick={() => alert("Next: Add Item modal")}
           >
             + Add Item
           </button>
+        </div>
+
+        <div style={{ marginTop: 6, opacity: 0.7 }}>
+          Items purchased from {vendor.name}. Rolling-average cost will calculate here.
         </div>
 
         <div
@@ -95,23 +96,26 @@ export default function VendorDetailClient({ id }: Props) {
           <div>Avg Cost</div>
         </div>
 
-        {vendor.items.map((item) => (
-          <div
-            key={item.id}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr",
-              padding: "12px 0",
-              borderBottom: "1px solid #f1f5f9",
-            }}
-          >
-            <div style={{ fontWeight: 700 }}>{item.name}</div>
-            <div>{item.unit}</div>
-            <div style={{ fontWeight: 800 }}>
-              {money(rollingAverage(item.costHistory))}
+        {vendor.items
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((item) => (
+            <div
+              key={item.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "2fr 1fr 1fr",
+                padding: "12px 0",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>{item.name}</div>
+              <div>{item.unit}</div>
+              <div style={{ fontWeight: 800 }}>
+                {money(rollingAverage(item.costHistory))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
       </div>
     </div>
   );
