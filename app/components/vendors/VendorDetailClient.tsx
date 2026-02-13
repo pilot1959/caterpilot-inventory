@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/app/lib/supabase";
 
 type Vendor = {
   id: string;
@@ -21,162 +22,128 @@ type VendorItem = {
   purchase_price: number;
 };
 
-function money(n: number) {
-  const val = Number.isFinite(n) ? n : 0;
-  return `$${val.toFixed(2)}`;
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
 }
 
-export default function VendorDetailClient() {
-  const params = useParams();
-  const vendorId = useMemo(() => {
-    const raw = params?.id;
-    if (typeof raw === "string") return decodeURIComponent(raw).trim();
-    if (Array.isArray(raw) && raw[0]) return decodeURIComponent(raw[0]).trim();
-    return "";
-  }, [params]);
+function money(v: number) {
+  return `$${Number(v || 0).toFixed(2)}`;
+}
 
+// Simple avg cost per unit based on latest purchase rows (MVP).
+function avgUnitCost(items: VendorItem[]) {
+  if (!items.length) return 0;
+  const unitCosts = items.map((i) => Number(i.purchase_price) / Number(i.purchase_quantity || 1));
+  const total = unitCosts.reduce((a, b) => a + b, 0);
+  return total / unitCosts.length;
+}
+
+export default function VendorDetailClient({ id }: { id?: string }) {
+  const params = useParams<{ id?: string }>();
+
+  // ✅ Always get the route id from the URL. If prop is missing, params wins.
+  const vendorKey = useMemo(() => {
+    const fromParams = typeof params?.id === "string" ? params.id : "";
+    const fromProp = typeof id === "string" ? id : "";
+    return (fromParams || fromProp || "").trim();
+  }, [params?.id, id]);
+
+  const [loading, setLoading] = useState(true);
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [items, setItems] = useState<VendorItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-
-  // Minimal “avg cost” placeholder until rolling average module
-  const avgCost = (it: VendorItem) => {
-    // For MVP: treat last purchase_price / purchase_quantity as unit cost
-    const qty = Number(it.purchase_quantity || 0);
-    const price = Number(it.purchase_price || 0);
-    if (!qty) return 0;
-    return price / qty;
-  };
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       setLoading(true);
-      setErr(null);
+      setError(null);
+      setVendor(null);
+      setItems([]);
 
-      if (!vendorId) {
-        setVendor(null);
-        setItems([]);
+      // ✅ If this is blank, it means the URL is wrong (like /vendors/ with no id)
+      if (!vendorKey) {
+        setLoading(false);
+        setError("Route param id is blank. Check the link you clicked.");
+        return;
+      }
+
+      // 1) Fetch vendor (by UUID id OR by name match if URL is "sysco")
+      const vendorQuery = isUuid(vendorKey)
+        ? supabase.from("vendors").select("*").eq("id", vendorKey).maybeSingle()
+        : supabase
+            .from("vendors")
+            .select("*")
+            .ilike("name", vendorKey) // matches "sysco" -> "Sysco"
+            .maybeSingle();
+
+      const { data: vendorRow, error: vendorErr } = await vendorQuery;
+
+      if (cancelled) return;
+
+      if (vendorErr) {
+        setError(vendorErr.message);
         setLoading(false);
         return;
       }
 
-      try {
-        const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-        if (!base || !anon) {
-          throw new Error(
-            "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel Environment Variables."
-          );
-        }
-
-        const headers = {
-          apikey: anon,
-          Authorization: `Bearer ${anon}`,
-          "Content-Type": "application/json",
-        };
-
-        // 1) vendor
-        const vRes = await fetch(
-          `${base}/rest/v1/vendors?select=id,name,contact_name,phone,email&id=eq.${encodeURIComponent(
-            vendorId
-          )}&limit=1`,
-          { headers, cache: "no-store" }
-        );
-
-        if (!vRes.ok) {
-          const t = await vRes.text();
-          throw new Error(`Vendors query failed: ${vRes.status} ${t}`);
-        }
-
-        const vData: Vendor[] = await vRes.json();
-        const v = vData?.[0] ?? null;
-
-        // 2) items (only if vendor exists)
-        let iData: VendorItem[] = [];
-        if (v) {
-          const iRes = await fetch(
-            `${base}/rest/v1/vendor_items?select=id,vendor_id,name,purchase_unit,purchase_quantity,purchase_price&vendor_id=eq.${encodeURIComponent(
-              v.id
-            )}&order=name.asc`,
-            { headers, cache: "no-store" }
-          );
-
-          if (!iRes.ok) {
-            const t = await iRes.text();
-            throw new Error(`Items query failed: ${iRes.status} ${t}`);
-          }
-
-          iData = await iRes.json();
-        }
-
-        if (!cancelled) {
-          setVendor(v);
-          setItems(iData);
-          setLoading(false);
-        }
-      } catch (e: any) {
-        if (!cancelled) {
-          setVendor(null);
-          setItems([]);
-          setErr(e?.message ?? "Unknown error");
-          setLoading(false);
-        }
+      if (!vendorRow) {
+        setError(`No vendor exists for: "${vendorKey}"`);
+        setLoading(false);
+        return;
       }
+
+      setVendor(vendorRow as Vendor);
+
+      // 2) Fetch vendor items
+      const { data: itemRows, error: itemErr } = await supabase
+        .from("vendor_items")
+        .select("*")
+        .eq("vendor_id", vendorRow.id)
+        .order("name", { ascending: true });
+
+      if (cancelled) return;
+
+      if (itemErr) {
+        setError(itemErr.message);
+        setLoading(false);
+        return;
+      }
+
+      setItems((itemRows || []) as VendorItem[]);
+      setLoading(false);
     }
 
     load();
     return () => {
       cancelled = true;
     };
-  }, [vendorId]);
+  }, [vendorKey]);
 
   if (loading) {
     return (
       <div style={{ padding: 24 }}>
         <Link href="/vendors">← Back to Vendors</Link>
         <div style={{ marginTop: 16, opacity: 0.7 }}>Loading…</div>
+        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.5 }}>
+          Debug: vendorKey = {vendorKey || "(blank)"}
+        </div>
       </div>
     );
   }
 
-  if (!vendorId) {
+  if (error || !vendor) {
     return (
       <div style={{ padding: 24 }}>
         <Link href="/vendors">← Back to Vendors</Link>
         <h1 style={{ marginTop: 16 }}>Vendor Not Found</h1>
-        <p style={{ marginTop: 8 }}>No vendor id found in the URL.</p>
-        <p style={{ marginTop: 8, opacity: 0.7 }}>
-          Try going back and clicking the vendor again.
-        </p>
-      </div>
-    );
-  }
-
-  if (!vendor) {
-    return (
-      <div style={{ padding: 24 }}>
-        <Link href="/vendors">← Back to Vendors</Link>
-        <h1 style={{ marginTop: 16 }}>Vendor Not Found</h1>
-        <p style={{ marginTop: 8 }}>No vendor exists with id: {vendorId}</p>
-        {err ? (
-          <pre
-            style={{
-              marginTop: 12,
-              background: "#f8fafc",
-              border: "1px solid #e5e7eb",
-              padding: 12,
-              borderRadius: 8,
-              overflowX: "auto",
-              fontSize: 12,
-            }}
-          >
-            {err}
-          </pre>
-        ) : null}
+        <p style={{ marginTop: 8 }}>{error || "Unknown error"}</p>
+        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.6 }}>
+          Debug: vendorKey = {vendorKey || "(blank)"}
+        </div>
       </div>
     );
   }
@@ -185,14 +152,12 @@ export default function VendorDetailClient() {
     <div style={{ padding: 24 }}>
       <Link href="/vendors">← Back to Vendors</Link>
 
-      <h1 style={{ fontSize: 30, fontWeight: 800, marginTop: 12 }}>
-        {vendor.name}
-      </h1>
+      <h1 style={{ fontSize: 34, fontWeight: 900, marginTop: 12 }}>{vendor.name}</h1>
 
       <div style={{ marginTop: 8, opacity: 0.7 }}>
-        {vendor.contact_name ? <span>{vendor.contact_name}</span> : null}
-        {vendor.phone ? <span> • {vendor.phone}</span> : null}
-        {vendor.email ? <span> • {vendor.email}</span> : null}
+        {vendor.contact_name ? <div>Contact: {vendor.contact_name}</div> : null}
+        {vendor.phone ? <div>Phone: {vendor.phone}</div> : null}
+        {vendor.email ? <div>Email: {vendor.email}</div> : null}
       </div>
 
       <div
@@ -201,12 +166,12 @@ export default function VendorDetailClient() {
           border: "1px solid #e5e7eb",
           borderRadius: 12,
           padding: 16,
-          maxWidth: 980,
+          maxWidth: 1000,
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 800 }}>Vendor Items</div>
+        <div style={{ fontSize: 18, fontWeight: 900 }}>Vendor Items</div>
         <div style={{ opacity: 0.7, marginTop: 6 }}>
-          Items purchased from {vendor.name}. (Rolling average comes later.)
+          Items purchased from {vendor.name}. Rolling-average pricing will live here.
         </div>
 
         <div
@@ -220,15 +185,13 @@ export default function VendorDetailClient() {
           }}
         >
           <div>Item</div>
-          <div>Purchase Unit</div>
-          <div>Last Purchase</div>
-          <div>Unit Cost</div>
+          <div>Unit</div>
+          <div>Purchase Size</div>
+          <div>Avg Unit Cost</div>
         </div>
 
         {items.length === 0 ? (
-          <div style={{ padding: "14px 0", opacity: 0.7 }}>
-            No items yet.
-          </div>
+          <div style={{ padding: "14px 0", opacity: 0.7 }}>No items yet.</div>
         ) : (
           items.map((item) => (
             <div
@@ -238,16 +201,16 @@ export default function VendorDetailClient() {
                 gridTemplateColumns: "2fr 1fr 1fr 1fr",
                 padding: "12px 0",
                 borderBottom: "1px solid #f1f5f9",
-                alignItems: "center",
               }}
             >
               <div style={{ fontWeight: 700 }}>{item.name}</div>
               <div>{item.purchase_unit}</div>
               <div>
-                {money(Number(item.purchase_price || 0))} /{" "}
-                {Number(item.purchase_quantity || 0)}
+                {item.purchase_quantity} {item.purchase_unit}
               </div>
-              <div style={{ fontWeight: 800 }}>{money(avgCost(item))}</div>
+              <div style={{ fontWeight: 800 }}>
+                {money(avgUnitCost([item]))}
+              </div>
             </div>
           ))
         )}
