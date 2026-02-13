@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useParams } from "next/navigation";
-import { seedVendors, rollingAverage, money } from "@/app/components/vendors/vendorData";
+import {
+  seedVendors,
+  rollingAverage,
+  money,
+} from "@/app/components/vendors/vendorData";
 
 export default function VendorDetailClient({ id }: { id?: string }) {
   const params = useParams();
 
-  // Fallback: if prop id is missing, use the URL param
+  // Use the prop id, but if it's missing, fall back to the URL param
   const vendorId = useMemo(() => {
     const raw =
       (id ?? "") ||
@@ -59,8 +63,15 @@ export default function VendorDetailClient({ id }: { id?: string }) {
           maxWidth: 900,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <div style={{ fontSize: 18, fontWeight: 800 }}>Vendor Items</div>
+
           <button
             style={{
               background: "#111827",
@@ -78,7 +89,8 @@ export default function VendorDetailClient({ id }: { id?: string }) {
         </div>
 
         <div style={{ marginTop: 6, opacity: 0.7 }}>
-          Items purchased from {vendor.name}. Rolling-average cost will calculate here.
+          Items purchased from {vendor.name}. Rolling-average cost will calculate
+          here.
         </div>
 
         <div
