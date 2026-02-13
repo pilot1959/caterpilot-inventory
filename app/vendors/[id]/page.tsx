@@ -1,12 +1,15 @@
-import { useRouter } from "next/router"; // Using next/router for dynamic routes
+import { useRouter } from "next/router";  // We use useRouter here to get the dynamic URL parameter
 import VendorDetailClient from "@/app/components/vendors/VendorDetailClient";
 
 export default function VendorDetailPage() {
   const router = useRouter();
-  const { id } = router.query;  // Retrieve 'id' from the URL
+  
+  // Destructure the id from router.query
+  const { id } = router.query;
 
-  console.log('Vendor ID:', id);  // Log the 'id' to see what is being passed
+  console.log("Query Params:", router.query);  // Log the entire query object to check if 'id' exists
 
+  // If id is missing, display a fallback message
   if (!id) {
     return (
       <div style={{ padding: 24 }}>
@@ -16,5 +19,6 @@ export default function VendorDetailPage() {
     );
   }
 
+  // If id exists, render the vendor details
   return <VendorDetailClient id={id as string} />;
 }
